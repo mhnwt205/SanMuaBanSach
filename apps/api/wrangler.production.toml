@@ -1,0 +1,17 @@
+name = "cho-sach-cu-api"
+main = "src/index.ts"
+compatibility_date = "2025-06-20"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cho-sach-cu-db"
+database_id = "9b434dcb-2166-478c-b1ec-afa5f24506f5"
+migrations_dir = "migrations"
+
+# Owner approved R2 subscription and possible usage above its free allowance.
+# Standard storage; no public bucket domain or Infrequent Access.
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "cho-sach-cu-images"

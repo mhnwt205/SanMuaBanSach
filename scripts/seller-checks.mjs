@@ -1,0 +1,66 @@
+import assert from 'node:assert/strict';
+
+export async function runSellerChecks({request,status,account,seller,buyer,admin,book,suffix}) {
+  const call = async (path, method='GET', json, cookie=seller.cookie, expected=200) =>
+    status(await request(path,{method,json,cookie}),expected).data;
+  const other=await account('other-seller');
+  await call('/api/seller/applications','POST',{phone:'0900000001'},other.cookie,201);
+  const {application}=await call('/api/seller/applications/me','GET',undefined,other.cookie);
+  await call(`/api/admin/seller-applications/${application.id}/decision`,'POST',{decision:'approved'},admin.cookie);
+  const created=await call('/api/listings','POST',{...book,title:`Seller lifecycle ${suffix}`},seller.cookie,201);
+  const path=`/api/seller/listings/${created.id}`;
+  const get=async()=> (await call(path)).item;
+  await call(path,'GET',undefined,null,401);
+  await call(path,'GET',undefined,buyer.cookie,403);
+  await call(path,'GET',undefined,other.cookie,404);
+  let row=await get();
+  const edit=(data,expected=200,cookie=seller.cookie)=>call(path,'PATCH',{...book,...data},cookie,expected);
+  await edit({version:row.version},404,other.cookie);
+  await edit({version:row.version},403,buyer.cookie);
+  await edit({version:row.version,image_keys:[book.image_keys[0]]},400);
+  await edit({version:row.version,image_keys:[book.image_keys[0],other.id+'/foreign.png']},400);
+  await edit({version:row.version,price:-1},400);
+  await edit({version:row.version,seller_id:other.id,status:'active'});
+  row=await get();
+  assert.equal(row.status,'pending');
+  const approve=async()=>{const current=await get();await call(`/api/admin/listings/${created.id}/decision`,'POST',{decision:'active',version:current.version},admin.cookie);};
+  await approve(); row=await get();
+  await call(`/api/listings/${created.id}`);
+  await call(`/api/listings/${created.id}/contact`,'GET',undefined,buyer.cookie);
+  const beforeEdit=row.version;
+  await edit({version:row.version,title:`Edited seller ${suffix}`});
+  row=await get();assert.equal(row.status,'pending');
+  await call(`/api/listings/${created.id}`,'GET',undefined,buyer.cookie,404);
+  await call(`/api/listings/${created.id}/contact`,'GET',undefined,buyer.cookie,404);
+  await edit({version:beforeEdit},409);
+  await call(path+'/status','POST',{status:'active',version:row.version},seller.cookie,409);
+  const races=await Promise.all([0,1].map(()=>request(path+'/status',{method:'POST',json:{status:'hidden',version:row.version},cookie:seller.cookie})));
+  assert.deepEqual(races.map(r=>r.response.status).sort(),[200,409]);
+  for (const response of races) status(response,response.response.status);
+  row=await get();assert.equal(row.status,'hidden');
+  await call(`/api/admin/listings/${created.id}/decision`,'POST',{decision:'active',version:row.version},admin.cookie,404);
+  await edit({version:row.version});
+  row=await get();assert.equal(row.status,'pending');
+  for (const note of [undefined,'   ','x'.repeat(501)])
+    await call(`/api/admin/listings/${created.id}/decision`,'POST',{decision:'rejected',note,version:row.version},admin.cookie,400);
+  await call(`/api/admin/listings/${created.id}/decision`,'POST',{decision:'rejected',note:'Cần mô tả rõ tình trạng sách',version:row.version},admin.cookie);
+  row=await get();assert.equal(row.review_note,'Cần mô tả rõ tình trạng sách');
+  await edit({version:row.version,description:'Đã bổ sung tình trạng sách'});
+  await approve();row=await get();
+  await call(path+'/status','POST',{status:'sold',version:row.version});
+  row=await get();assert.equal(row.status,'sold');
+  await edit({version:row.version},409);
+  for (const next of ['active','pending','hidden']) await call(path+'/status','POST',{status:next,version:row.version},seller.cookie,409);
+  await call(`/api/listings/${created.id}`,'GET',undefined,buyer.cookie,404);
+  await call(`/api/listings/${created.id}/contact`,'GET',undefined,buyer.cookie,404);
+  const own=await call('/api/seller/listings');
+  assert.equal(own.items.find(r=>r.id===created.id).version,row.version);
+  const audit=await call('/api/admin/audit?limit=100','GET',undefined,admin.cookie);
+  assert.equal(audit.items.filter(r=>r.resource_id===created.id && r.action==='seller.hide').length,1);
+  assert.equal(audit.items.filter(r=>r.resource_id===created.id && r.action==='seller.sold').length,1);
+  const deleted=await call('/api/listings','POST',book,seller.cookie,201);
+  await call(`/api/admin/catalog/${deleted.id}`,'DELETE',{version:0},admin.cookie);
+  await call(`/api/seller/listings/${deleted.id}`,'GET',undefined,seller.cookie,404);
+  await call(`/api/seller/listings/${deleted.id}`,'PATCH',{...book,version:1},seller.cookie,404);
+  console.log('PASS: Seller ownership, editing/review, hide/re-submit, rejection note, terminal sold, stale/concurrent requests and audit');
+}

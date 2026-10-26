@@ -1,0 +1,20 @@
+{
+  "name": "cho-sach-cu-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --persist-to .wrangler/state",
+    "typecheck": "tsc --noEmit",
+    "db:local": "wrangler d1 migrations apply cho-sach-cu-db --local"
+  },
+  "dependencies": {
+    "hono": "^4.8.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261023.1",
+    "@types/node": "^24.19.2",
+    "typescript": "~5.8.3",
+    "wrangler": "^4.152.0"
+  }
+}

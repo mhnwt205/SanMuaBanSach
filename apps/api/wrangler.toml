@@ -1,0 +1,14 @@
+name = "cho-sach-cu-api"
+main = "src/index.ts"
+compatibility_date = "2025-06-20"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cho-sach-cu-db"
+database_id = "local-development-placeholder"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "cho-sach-cu-images"

@@ -1,0 +1,13 @@
+{
+  "name": "cho-sach-cu",
+  "private": true,
+  "scripts": {
+    "dev:web": "npm --prefix apps/web run dev -- --host 0.0.0.0",
+    "build": "npm --prefix apps/web run build && npm --prefix apps/api run typecheck",
+    "dev:api": "npm --prefix apps/api run dev",
+    "db:local": "npm --prefix apps/api run db:local",
+    "test:local": "node scripts/smoke-local.mjs",
+    "test:storage-disabled": "node --experimental-strip-types --test scripts/storage-disabled.test.mjs",
+    "test:runtime": "node --experimental-strip-types --test scripts/storage-disabled.test.mjs scripts/password-limit.test.mjs scripts/password.test.mjs"
+  }
+}

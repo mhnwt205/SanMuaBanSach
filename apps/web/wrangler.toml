@@ -1,0 +1,7 @@
+name = "cho-sach-cu"
+pages_build_output_dir = "./dist"
+compatibility_date = "2025-06-20"
+
+[[services]]
+binding = "API"
+service = "cho-sach-cu-api"
